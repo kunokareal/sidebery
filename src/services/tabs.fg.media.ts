@@ -98,14 +98,17 @@ export async function pauseTabMedia(id?: ID): Promise<void> {
   tab.reactive.mediaPaused = tab.mediaPaused = true
   Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
 
-  browser.tabs
-    .executeScript(tab.id, {
-      file: '../injections/pauseMedia.js',
-      runAt: 'document_start',
-      allFrames: true,
+  browser.scripting
+    .executeScript({
+      files: ['../injections/pauseMedia.js'],
+      injectImmediately: true,
+      target: {
+        tabId: tab.id,
+        allFrames: true
+      }
     })
     .then(results => {
-      if (results.every(result => result === false)) {
+      if (results.every(({ result }) => result === false)) {
         tab.reactive.mediaPaused = tab.mediaPaused = false
         Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
       }
@@ -131,11 +134,14 @@ export async function playTabMedia(id?: ID): Promise<void> {
   tab.reactive.mediaPaused = tab.mediaPaused = false
   Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
 
-  browser.tabs
-    .executeScript(tab.id, {
-      file: '../injections/playMedia.js',
-      runAt: 'document_start',
-      allFrames: true,
+  browser.scripting
+    .executeScript({
+      files: ['../injections/playMedia.js'],
+      injectImmediately: true,
+      target: {
+        tabId: tab.id,
+        allFrames: true
+      }
     })
     .catch(err => {
       Logs.err('Tabs.playTabMedia: Cannot exec script:', err)
@@ -163,10 +169,9 @@ export async function pauseTabsMediaOfPanel(panelId: ID): Promise<void> {
   const panel = Sidebar.panelsById[panelId]
   if (!Utils.isTabsPanel(panel)) return
 
-  const injectionConfig: browser.tabs.ExecuteOpts = {
-    file: '../injections/pauseMedia.js',
-    runAt: 'document_start',
-    allFrames: true,
+  const injectionConfig: Omit<browser.scripting.InjectDetails, 'target'> = {
+    files: ['../injections/pauseMedia.js'],
+    injectImmediately: true,
   }
 
   if (Settings.state.pinnedTabsPosition === 'panel') {
@@ -176,10 +181,16 @@ export async function pauseTabsMediaOfPanel(panelId: ID): Promise<void> {
       if ((tab.audible || tab.mutedInfo?.muted) && tab.panelId === panel.id) {
         tab.reactive.mediaPaused = tab.mediaPaused = true
         Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
-        browser.tabs
-          .executeScript(tab.id, injectionConfig)
+        browser.scripting
+          .executeScript({
+            ...injectionConfig,
+            target: {
+              tabId: tab.id,
+              allFrames: true
+            },
+          })
           .then(results => {
-            if (results.every(result => result === false)) {
+            if (results.every(({ result }) => result === false)) {
               tab.reactive.mediaPaused = tab.mediaPaused = false
               Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
             }
@@ -196,10 +207,16 @@ export async function pauseTabsMediaOfPanel(panelId: ID): Promise<void> {
     if (tab.audible || tab.mutedInfo?.muted) {
       tab.reactive.mediaPaused = tab.mediaPaused = true
       Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
-      browser.tabs
-        .executeScript(tab.id, injectionConfig)
+      browser.scripting
+        .executeScript({
+          ...injectionConfig,
+          target: {
+            tabId: tab.id,
+            allFrames: true
+          },
+        })
         .then(results => {
-          if (results.every(result => result === false)) {
+          if (results.every(({ result }) => result === false)) {
             tab.reactive.mediaPaused = tab.mediaPaused = false
             Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
           }
@@ -222,10 +239,9 @@ export async function playTabsMediaOfPanel(panelId: ID): Promise<void> {
   const panel = Sidebar.panelsById[panelId]
   if (!Utils.isTabsPanel(panel)) return
 
-  const injectionConfig: browser.tabs.ExecuteOpts = {
-    file: '../injections/playMedia.js',
-    runAt: 'document_start',
-    allFrames: true,
+  const injectionConfig: Omit<browser.scripting.InjectDetails, 'target'> = {
+    files: ['../injections/playMedia.js'],
+    injectImmediately: true,
   }
 
   if (Settings.state.pinnedTabsPosition === 'panel') {
@@ -234,7 +250,13 @@ export async function playTabsMediaOfPanel(panelId: ID): Promise<void> {
       if (tab.mediaPaused && tab.panelId === panel.id) {
         tab.reactive.mediaPaused = tab.mediaPaused = false
         Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
-        browser.tabs.executeScript(tab.id, injectionConfig).catch(err => {
+        browser.scripting.executeScript({
+          ...injectionConfig,
+          target: {
+            tabId: tab.id,
+            allFrames: true
+          },
+        }).catch(err => {
           Logs.err('Tabs.playTabsMediaOfPanel: Cannot exec script (pinned):', err)
         })
       }
@@ -245,7 +267,13 @@ export async function playTabsMediaOfPanel(panelId: ID): Promise<void> {
     if (tab.mediaPaused) {
       tab.reactive.mediaPaused = tab.mediaPaused = false
       Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
-      browser.tabs.executeScript(tab.id, injectionConfig).catch(err => {
+      browser.scripting.executeScript({
+        ...injectionConfig,
+        target: {
+          tabId: tab.id,
+          allFrames: true
+        },
+      }).catch(err => {
         Logs.err('Tabs.playTabsMediaOfPanel: Cannot exec script:', err)
       })
     }
@@ -271,20 +299,25 @@ export async function pauseAllAudibleTabsMedia(): Promise<void> {
     if (!result) return
   }
 
-  const injectionConfig: browser.tabs.ExecuteOpts = {
-    file: '../injections/pauseMedia.js',
-    runAt: 'document_start',
-    allFrames: true,
+  const injectionConfig: Omit<browser.scripting.InjectDetails, 'target'> = {
+    files: ['../injections/pauseMedia.js'],
+    injectImmediately: true,
   }
 
   for (const tab of Tabs.list) {
     if (tab.audible) {
       tab.reactive.mediaPaused = tab.mediaPaused = true
       Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
-      browser.tabs
-        .executeScript(tab.id, injectionConfig)
+      browser.scripting
+        .executeScript({
+          ...injectionConfig,
+          target: {
+            tabId: tab.id,
+            allFrames: true
+          },
+        })
         .then(results => {
-          if (results.every(result => result === false)) {
+          if (results.every(({ result }) => result === false)) {
             tab.reactive.mediaPaused = tab.mediaPaused = false
             Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
           }
@@ -304,17 +337,22 @@ export async function playAllPausedTabsMedia(): Promise<void> {
     if (!result) return
   }
 
-  const injectionConfig: browser.tabs.ExecuteOpts = {
-    file: '../injections/playMedia.js',
-    runAt: 'document_start',
-    allFrames: true,
+  const injectionConfig: Omit<browser.scripting.InjectDetails, 'target'> = {
+    files: ['../injections/playMedia.js'],
+    injectImmediately: true,
   }
 
   for (const tab of Tabs.list) {
     if (tab.mediaPaused) {
       tab.reactive.mediaPaused = tab.mediaPaused = false
       Sidebar.updateMediaStateOfPanelDebounced(100, tab.panelId, tab)
-      browser.tabs.executeScript(tab.id, injectionConfig).catch(err => {
+      browser.scripting.executeScript({
+        ...injectionConfig,
+        target: {
+          tabId: tab.id,
+          allFrames: true
+        },
+      }).catch(err => {
         Logs.err('Tabs.playAllPausedTabsMedia: Cannot exec script:', err)
       })
     }
